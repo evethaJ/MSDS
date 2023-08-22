@@ -1,0 +1,234 @@
+---
+title: "NYPD Shooting Incident Severity Analysis"
+date: '2023-08-18'
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Introduction
+In this report I correlate the severity of NYPD Shooting Incident(Fatal, Non-fatal) with administrative unit(Borough) and victim's demographics(Age, Sex and Race).
+
+# Importing the libraries
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(ggthemes)
+library(glm2)
+```
+
+# Importing and summarize the data
+The variables that I used in the analysis appeared not to have any missing values. Here is the list of variables and their corresponding description that I used in the analysis.
+-   BORO: Borough where the incident occurred.
+-   OCCUR_DATE: Month, day, and year in which the shooting incident occurred. 
+-   OCCUR_TIME: Time of day in which the shooting incident occurred.
+-   STATISTCAL_MUREDER_FLAG: Record stating whether a shooting resulted in the victim’s death. 
+-   VIC_SEX: Victim’s gender 
+-   VIC_RACE: Victim’s race as categorized by the New York City Police Department.
+-   VIC_AGE_GROUP: Victim’s age group as categorized by the New York City Police Department.
+
+
+```{r, warning=FALSE, message= FALSE}
+url = 'https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD'
+data = read_csv(url)
+summary(data)
+```
+
+
+# Mutate some variables for analysis
+- I created variables such as hour, year and incident type that I used later in the analysis.
+```{r}
+data_a <- data %>%
+  mutate(hour = as.numeric(substr(OCCUR_TIME, 1,2)),
+         year = year(mdy(OCCUR_DATE)),
+         categorized_hour = cut(hour,
+                                 breaks = c(0, 6, 12, 18, 23),
+                                 labels = c('0-6', '7-12', '13-18', '19-23'),
+                                 include.lowest = TRUE),
+         incident_type = ifelse(STATISTICAL_MURDER_FLAG, "Fatal Incident", "Non-Fatal Incident"),
+         incident_type_model = ifelse(STATISTICAL_MURDER_FLAG, 1, 0)
+  )
+```
+
+# Fatal and non-fatal incident
+-   I created a plot showing the number of fatal and non-fatal incident in NYPD shooting incident data. Fatal incident constituted 19% of the incidents.
+```{r, out.width = "100%"}
+data_a %>%
+  group_by(incident_type) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round((count / sum(count)) * 100),3) %>%
+  ggplot(aes(x = incident_type, y = count, fill = incident_type)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste(count, "(", percent, "%)")),
+            vjust = -0.5, color = "black", size = 3) +
+  labs(title = "Incident Types", y='No. of Incidents',
+       x='Incident Types', fill='') +
+  theme_igray()+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')
+```
+
+# Fatal and non-fatal incident by race
+-   Black majority appears to be over represented in both fatal and non-fatal incidents.
+-   A more unbiased results can be obtained by normalizing the incident with population by each race but the population data was not available.
+```{r, out.width = "100%"}
+data_a %>%
+  #filter(VIC_RACE != "UNKNOWN") %>%
+  group_by(VIC_RACE, incident_type) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round((count / sum(count)) * 100, 1)) %>%
+  ggplot(aes(x = count, y = VIC_RACE, fill = incident_type)) +  # Switch x and y aesthetics
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = paste(count, "(", percent, "%)")),
+            position = position_dodge(width = 0.9),
+            hjust = -0.2, color = "black", size = 3) +  # Adjust hjust for horizontal text alignment
+  scale_x_continuous(limits = c(0, 23000))+
+  labs(title = "Incident Types by Race", x = 'No. of Incidents',  # Adjust x and y labels
+       y = 'Victim Race', fill = 'Incident Type') +
+  theme_igray() +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')
+```
+
+# Fatal and non-fatal incident by victim's age group
+-   The age group of 18-44 constitute majority of the incidents. 
+-   The percent of fatal incident within each group 
+```{r, out.width = "100%"}
+data_a %>%
+  filter(VIC_AGE_GROUP != "1022") %>% # One incident with an error
+  group_by(VIC_AGE_GROUP, incident_type) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round((count / sum(count)) * 100, 1)) %>%
+  ggplot(aes(x = count, y = VIC_AGE_GROUP, fill = incident_type)) +  # Switch x and y aesthetics
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = paste(count, "(", percent, "%)")),
+            position = position_dodge(width = 0.9),
+            hjust = -0.2, color = "black", size = 3) +  # Adjust hjust for horizontal text alignment
+  scale_x_continuous(limits = c(0, 15000))+
+  labs(title = "Incident Types by Age Group", x = 'No. of Incidents',  # Adjust x and y labels
+       y = 'Victim Age Group', fill = 'Incident Type') +
+  theme_igray() +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')
+```
+
+# Fatal and non-fatal incident by victim's sex
+-   Male victims constitute majority of the incidents
+-   The percent of fatal incident within  each group are fairly similar.
+```{r, out.width = "100%"}
+data_a %>%
+  filter(VIC_SEX != "1022") %>% # One incident with an error
+  group_by(VIC_SEX, incident_type) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round((count / sum(count)) * 100, 1)) %>%
+  ggplot(aes(x = count, y = VIC_SEX, fill = incident_type)) +  # Switch x and y aesthetics
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = paste(count, "(", percent, "%)")),
+            position = position_dodge(width = 0.9),
+            hjust = -0.2, color = "black", size = 3) +  # Adjust hjust for horizontal text alignment
+  scale_x_continuous(limits = c(0, 25000))+
+  labs(title = "Incident Types by Sex", x = 'No. of Incidents',  # Adjust x and y labels
+       y = 'Victim Sex', fill = 'Incident Type') +
+  theme_igray() +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')
+```
+
+# Fatal and non-fatal incident by borough
+-   Brooklyn and Bronx has the majority of the incidents
+-   The percent of fatal incident within  each borough vary.
+```{r, out.width = "100%"}
+data_a %>%
+  group_by(BORO, incident_type) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round((count / sum(count)) * 100, 1)) %>%
+  ggplot(aes(x = count, y = BORO, fill = incident_type)) +  # Switch x and y aesthetics
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = paste(count, "(", percent, "%)")),
+            position = position_dodge(width = 0.9),
+            hjust = -0.2, color = "black", size = 3) +  # Adjust hjust for horizontal text alignment
+  scale_x_continuous(limits = c(0, 13000))+
+  labs(title = "Incident Types by Borough ", x = 'No. of Incidents',  # Adjust x and y labels
+       y = 'Borough', fill = 'Incident Type') +
+  theme_igray() +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')
+```
+
+# Fatal and non-fatal incident by hour of the day
+-   Both Fatal and non-fatal incidents are more prevalent at night time
+```{r, out.width = "100%"}
+data_a %>%
+  group_by(hour, incident_type)%>%
+  #Count the number of incidents
+  summarise(incident=n())%>%
+  ungroup() %>% 
+  ggplot(aes(x=hour, y=incident, color=incident_type)) +
+  geom_line(size=1) + 
+  geom_point(size=3) + 
+  theme_igray() +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')+
+  labs(title= "NYPD Shooting Incident", 
+       x='Hour of the Day', y='Incident', color='Incident type')
+```
+
+# Fatal and non-fatal incident by year
+-   There was increase in number of incident from 2009 to 2020 after a download trend which started on 2014 
+```{r, out.width = "100%"}
+data_a %>%
+  group_by(year, incident_type)%>%
+  #Count the number of incidents
+  summarise(incident=n())%>%
+  ungroup() %>% 
+  ggplot(aes(x=year, y=incident, color=incident_type)) +
+  geom_line(size=1) + 
+  geom_point(size=3) + 
+  theme_igray() +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'),
+        legend.position = 'top')+
+  labs(title= "NYPD Shooting Incident", 
+       x='Year', y='Incident', color='Incident type')+
+  scale_x_continuous(breaks = seq(2006, 2022, by = 2))
+```
+
+# MODELING
+-   I used logistic regression to model the relationship between the severity of incident(fatal or non-fatal) and victims demographics(age, gender, race) and administrative units(borough)
+-   I used logistic regression because the response variable(fatal vs non-fatal) is binary
+-   The results shows age group, and administrative unit may have a significant association with the severity of incident.
+# Convert categorical variables to dummy variables
+```{r}
+data_dummies <- model.matrix(~ hour + VIC_SEX + VIC_RACE + VIC_AGE_GROUP + BORO - 1, data_a)
+response_var =data_a$incident_type_model
+```
+# Fit logistic regression model and summarize
+```{r}
+logistic_model <- glm(response_var ~ data_dummies, family = binomial(link = "logit"))
+summary(logistic_model)
+```
+# Source of bias
+The NYPD Shooting Incident data,  be subject to various sources of bias that can impact the accuracy and representativeness of the reported information. Such bias may include:
+-   Unreported or undocumented incident might lead to an underrepresentation of the true number of shooting incidents.
+-   The dataset may have not included incidents from all neighborhoods or communities equally.
+-   The data had incomplete information in some of the variable which could lead to a lack of context and potential misinterpretation
+
+# Conclusion:
+In this report, I examined the connection between the severity of NYPD Shooting Incidents (Fatal and Non-fatal) and factors like the administrative unit (Borough) and victim demographics (Age, Sex, and Race). It was found that Fatal incidents made up 19% of all incidents. Here are the key observations based on victim demographics:
+-   The majority of victims were male.
+-   The age group between 18 and 44 had the highest number of incidents.
+-   Incidents involving Black individuals appeared to be overrepresented in both fatal and non-fatal cases.
+Through trend analysis, the following insights were derived:
+-   Both Fatal and non-fatal incidents were more common during nighttime.
+-   The number of incidents increased from 2009 to 2020, with a noticeable upward trend since 2014.
+
+These findings provide valuable insights into the relationship between incident severity, victim demographics, and temporal trends within the context of NYPD Shooting Incidents. 
+
+
+
+
+
