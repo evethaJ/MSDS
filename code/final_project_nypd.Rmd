@@ -179,7 +179,7 @@ data_a %>%
 ```
 
 # Fatal and non-fatal incident by year
--   There was increase in number of incident from 2019 to 2020 after a download trend which started on 2014 
+-   There was increase in number of incident from 2009 to 2020 after a download trend which started on 2014 
 ```{r, out.width = "100%"}
 data_a %>%
   group_by(year, incident_type)%>%
@@ -224,7 +224,7 @@ In this report, I examined the connection between the severity of NYPD Shooting 
 -   Incidents involving Black individuals appeared to be overrepresented in both fatal and non-fatal cases.
 Through trend analysis, the following insights were derived:
 -   Both Fatal and non-fatal incidents were more common during nighttime.
--   The number of incidents increased from 2019 to 2020, with a noticeable upward trend since 2014.
+-   The number of incidents increased from 2009 to 2020, with a noticeable upward trend since 2014.
 
 These findings provide valuable insights into the relationship between incident severity, victim demographics, and temporal trends within the context of NYPD Shooting Incidents. 
 
