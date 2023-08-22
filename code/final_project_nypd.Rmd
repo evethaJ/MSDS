@@ -179,7 +179,7 @@ data_a %>%
 ```
 
 # Fatal and non-fatal incident by year
--   There was increase in number of incident from 2009 to 2020 after a download trend which started on 2014 
+-   There was increase in number of incident from 2019 to 2020 after a download trend which started on 2014 
 ```{r, out.width = "100%"}
 data_a %>%
   group_by(year, incident_type)%>%
